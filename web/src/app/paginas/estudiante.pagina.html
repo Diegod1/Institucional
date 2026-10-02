@@ -1,0 +1,113 @@
+<main class="pagina">
+  <header class="encabezado">
+    <div>
+      <p class="kicker">Estudiante</p>
+      <h1>Boletín</h1>
+      <p>Consulta el periodo o el año y descarga el PDF.</p>
+    </div>
+  </header>
+  @if (error()) { <p class="error">{{ error() }}</p> }
+
+  <section class="tarjeta">
+    <div class="rejilla">
+      <mat-form-field appearance="outline">
+        <mat-label>Año</mat-label>
+        <mat-select [(ngModel)]="anioId">
+          @for (anio of anios; track anio.id) { <mat-option [value]="anio.id">{{ anio.anio }} · {{ anio.grupo }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Periodo</mat-label>
+        <mat-select [(ngModel)]="periodoId">
+          @for (periodo of anioActual()?.periodos ?? []; track periodo.id) { <mat-option [value]="periodo.id">{{ periodo.nombre }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="verPeriodo()">Ver periodo</button>
+      <button mat-stroked-button (click)="verAnio()">Ver el año</button>
+    </div>
+  </section>
+
+  @if (boletin) {
+    <section class="tarjeta">
+      <div class="boletin-cabecera">
+        <div>
+          <p class="kicker">{{ boletin.nombrePeriodo }} · {{ boletin.anio }}</p>
+          <h2>{{ boletin.estudiante }}</h2>
+          <p>{{ boletin.colegio }} · {{ boletin.grado }} {{ boletin.grupo }}</p>
+        </div>
+        <button mat-stroked-button (click)="pdfPeriodo()">Descargar PDF</button>
+      </div>
+      <div class="tabla-contenedor">
+        <table class="datos">
+          <thead>
+            <tr>
+              <th>Materia</th>
+              <th>Nota</th>
+              <th>Desempeño</th>
+              <th>Comentario</th>
+              @if (boletin.mostrarDistanciaAlPromedio) { <th>Promedio</th> }
+              @if (boletin.mostrarDistanciaALaNotaMasAlta) { <th>Nota más alta</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (materia of boletin.materias; track materia.materia) {
+              <tr>
+                <td>
+                  {{ materia.materia }}
+                  <div class="actividades-mini">
+                    @for (actividad of materia.actividades; track actividad.actividadId) {
+                      <span>{{ actividad.nombre }} {{ actividad.porcentaje }}% {{ nota(actividad.valor) }} · </span>
+                    }
+                  </div>
+                </td>
+                <td class="nota-num">
+                  {{ nota(materia.nota) }}
+                  @if (materia.aprueba === false) { <div><span class="pastilla no-aprueba">No aprueba</span></div> }
+                </td>
+                <td>@if (materia.desempeno) { <span class="pastilla">{{ materia.desempeno }}</span> } @else { — }</td>
+                <td>{{ materia.comentario || '—' }}</td>
+                @if (boletin.mostrarDistanciaAlPromedio) {
+                  <td>{{ nota(materia.promedioDelGrupo) }}<br />{{ distanciaAlPromedio(materia.distanciaAlPromedio) }}</td>
+                }
+                @if (boletin.mostrarDistanciaALaNotaMasAlta) {
+                  <td>{{ nota(materia.notaMasAlta) }}<br />{{ distanciaALaAlta(materia.distanciaALaNotaMasAlta) }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="comentario-orientador"><strong>Orientador. </strong>{{ boletin.comentarioOrientador || 'Sin comentario.' }}</p>
+    </section>
+  }
+
+  @if (boletinAnio) {
+    <section class="tarjeta">
+      <div class="boletin-cabecera">
+        <div>
+          <p class="kicker">Cierre del año</p>
+          <h2>{{ boletinAnio.anio }}</h2>
+          <p>{{ boletinAnio.colegio }} · {{ boletinAnio.grado }} {{ boletinAnio.grupo }}</p>
+        </div>
+        <button mat-stroked-button (click)="pdfAnio()">Descargar PDF del año</button>
+      </div>
+      <table class="datos">
+        <thead><tr><th>Materia</th><th>Nota final</th><th>Desempeño</th><th>Resultado</th></tr></thead>
+        <tbody>
+          @for (materia of boletinAnio.materias; track materia.materia) {
+            <tr>
+              <td>{{ materia.materia }}</td>
+              <td class="nota-num">{{ nota(materia.nota) }}</td>
+              <td>@if (materia.desempeno) { <span class="pastilla">{{ materia.desempeno }}</span> } @else { — }</td>
+              <td>
+                @if (materia.aprueba === null) { — }
+                @else if (materia.aprueba) { <span class="pastilla">Aprueba</span> }
+                @else { <span class="pastilla no-aprueba">No aprueba</span> }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</main>

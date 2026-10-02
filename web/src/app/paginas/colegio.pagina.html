@@ -1,0 +1,212 @@
+<main class="pagina">
+  <header class="encabezado">
+    <div>
+      <p class="kicker">Colegio</p>
+      <h1>Organización del año</h1>
+      <p>Configura la escala, arma los grupos y asigna quién dicta cada materia.</p>
+    </div>
+  </header>
+  @if (mensaje()) { <p class="aviso">{{ mensaje() }}</p> }
+  @if (error()) { <p class="error">{{ error() }}</p> }
+
+  <mat-tab-group>
+    <mat-tab label="Configuración">
+      @if (configuracion) {
+        <section class="tarjeta">
+          <h2>Escala y comparaciones</h2>
+          <p>La nota mínima define si el estudiante aprueba. Las comparaciones se pueden ocultar en el boletín.</p>
+          <mat-form-field appearance="outline">
+            <mat-label>Nota mínima para aprobar</mat-label>
+            <input matInput type="number" step="0.01" min="0" max="5" [(ngModel)]="configuracion.notaMinimaAprobacion" />
+          </mat-form-field>
+          <div>
+            <mat-checkbox [(ngModel)]="configuracion.mostrarDistanciaAlPromedio">Mostrar distancia al promedio del grupo</mat-checkbox>
+          </div>
+          <div>
+            <mat-checkbox [(ngModel)]="configuracion.mostrarDistanciaALaNotaMasAlta">Mostrar distancia a la nota más alta</mat-checkbox>
+          </div>
+          <h3>Desempeños</h3>
+          <p>Los rangos no se pueden cruzar. El ejemplo habitual va de Bajo a Superior.</p>
+          @for (rango of configuracion.rangos; track rango.nombre) {
+            <div class="fila">
+              <strong style="width: 90px">{{ rango.nombre }}</strong>
+              <mat-form-field appearance="outline"><mat-label>Desde</mat-label><input matInput type="number" step="0.01" [(ngModel)]="rango.desde" /></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Hasta</mat-label><input matInput type="number" step="0.01" [(ngModel)]="rango.hasta" /></mat-form-field>
+            </div>
+          }
+          <button mat-flat-button color="primary" (click)="guardarConfiguracion()">Guardar configuración</button>
+        </section>
+      }
+    </mat-tab>
+
+    <mat-tab label="Año lectivo">
+      <section class="tarjeta">
+        <h2>Abrir un año</h2>
+        <p>Lo habitual son 4 periodos. El mínimo es 2. Los pesos deben sumar 100.</p>
+        <form class="rejilla" (ngSubmit)="crearAnio()">
+          <mat-form-field appearance="outline"><mat-label>Año</mat-label><input matInput type="number" name="anio" [(ngModel)]="nuevoAnio" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Periodos</mat-label><input matInput type="number" name="periodos" min="2" max="6" [(ngModel)]="cantidadPeriodos" required /></mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Crear año</button>
+        </form>
+        <mat-form-field appearance="outline">
+          <mat-label>Año en edición</mat-label>
+          <mat-select [(ngModel)]="anioSeleccionado" (selectionChange)="cargarGrupos()">
+            @for (anio of anios; track anio.id) {
+              <mat-option [value]="anio.id">{{ anio.anio }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (anioActual(); as anio) {
+          @for (periodo of anio.periodos; track periodo.id) {
+            <div class="fila">
+              <strong style="width: 120px">{{ periodo.nombre }}</strong>
+              <mat-form-field appearance="outline"><mat-label>Peso %</mat-label><input matInput type="number" [(ngModel)]="periodo.peso" [disabled]="periodo.cerrado" /></mat-form-field>
+              @if (periodo.cerrado) {
+                <span class="pastilla cerrada">Cerrado</span>
+              } @else {
+                <button mat-stroked-button type="button" (click)="cerrar(periodo.id)">Cerrar periodo</button>
+              }
+            </div>
+          }
+          <button mat-flat-button color="primary" (click)="guardarPesos()">Guardar pesos</button>
+        } @else {
+          <p class="vacio">Crea el primer año lectivo para definir los periodos.</p>
+        }
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Grados y materias">
+      <section class="tarjeta">
+        <h2>Grados</h2>
+        <form class="rejilla" (ngSubmit)="crearGrado()">
+          <mat-form-field appearance="outline"><mat-label>Grado</mat-label><input matInput name="grado" [(ngModel)]="nombreGrado" required /></mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Agregar grado</button>
+        </form>
+        <div class="chips">
+          @for (grado of grados; track grado.id) { <span class="chip">{{ grado.nombre }}</span> }
+          @if (grados.length === 0) { <p class="vacio">Aún no hay grados.</p> }
+        </div>
+        <h2>Materias</h2>
+        <form class="rejilla" (ngSubmit)="crearMateria()">
+          <mat-form-field appearance="outline"><mat-label>Materia</mat-label><input matInput name="materia" [(ngModel)]="nombreMateria" required /></mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Agregar materia</button>
+        </form>
+        <div class="chips">
+          @for (materia of materias; track materia.id) { <span class="chip">{{ materia.nombre }}</span> }
+          @if (materias.length === 0) { <p class="vacio">Aún no hay materias.</p> }
+        </div>
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Personas">
+      <section class="tarjeta">
+        <h2>Profesores</h2>
+        <form class="rejilla" (ngSubmit)="crearProfesor()">
+          <mat-form-field appearance="outline"><mat-label>Nombre</mat-label><input matInput name="np" [(ngModel)]="nombreProfesor" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Usuario</mat-label><input matInput name="up" [(ngModel)]="usuarioProfesor" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Contraseña</mat-label><input matInput type="password" name="cp" [(ngModel)]="contrasenaProfesor" required /></mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Crear profesor</button>
+        </form>
+        <table class="datos">
+          <thead><tr><th>Nombre</th><th>Usuario</th></tr></thead>
+          <tbody>
+            @for (profesor of profesores; track profesor.id) { <tr><td>{{ profesor.nombre }}</td><td>{{ profesor.nombreUsuario }}</td></tr> }
+          </tbody>
+        </table>
+      </section>
+      <section class="tarjeta">
+        <h2>Estudiantes</h2>
+        <form class="rejilla" (ngSubmit)="crearEstudiante()">
+          <mat-form-field appearance="outline"><mat-label>Nombre</mat-label><input matInput name="ne" [(ngModel)]="nombreEstudiante" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Usuario</mat-label><input matInput name="ue" [(ngModel)]="usuarioEstudiante" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Contraseña</mat-label><input matInput type="password" name="ce" [(ngModel)]="contrasenaEstudiante" required /></mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Crear estudiante</button>
+        </form>
+        <table class="datos">
+          <thead><tr><th>Nombre</th><th>Usuario</th></tr></thead>
+          <tbody>
+            @for (estudiante of estudiantes; track estudiante.id) { <tr><td>{{ estudiante.nombre }}</td><td>{{ estudiante.nombreUsuario }}</td></tr> }
+          </tbody>
+        </table>
+      </section>
+    </mat-tab>
+
+    <mat-tab label="Grupos">
+      <section class="tarjeta">
+        <h2>Nuevo grupo</h2>
+        <p>El grupo de orientación es el mismo donde se dictan las materias. Ejemplo: 6A.</p>
+        <form class="rejilla" (ngSubmit)="crearGrupo()">
+          <mat-form-field appearance="outline"><mat-label>Nombre</mat-label><input matInput name="ng" [(ngModel)]="nombreGrupo" required /></mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Grado</mat-label>
+            <mat-select name="gradoId" [(ngModel)]="gradoId">
+              @for (grado of grados; track grado.id) { <mat-option [value]="grado.id">{{ grado.nombre }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Orientador</mat-label>
+            <mat-select name="orientadorId" [(ngModel)]="orientadorId">
+              @for (profesor of profesores; track profesor.id) { <mat-option [value]="profesor.id">{{ profesor.nombre }}</mat-option> }
+            </mat-select>
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="submit">Crear grupo</button>
+        </form>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Grupo en edición</h2>
+        <mat-form-field appearance="outline">
+          <mat-label>Grupo</mat-label>
+          <mat-select [(ngModel)]="grupoId">
+            @for (grupo of grupos; track grupo.id) { <mat-option [value]="grupo.id">{{ grupo.nombre }} · {{ grupo.grado }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+
+        @if (grupoActual(); as grupo) {
+          <p>Orientador: <strong>{{ grupo.orientador }}</strong></p>
+          <h3>Estudiantes</h3>
+          <form class="rejilla" (ngSubmit)="matricular()">
+            <mat-form-field appearance="outline">
+              <mat-label>Estudiante</mat-label>
+              <mat-select name="estudianteId" [(ngModel)]="estudianteId">
+                @for (estudiante of estudiantes; track estudiante.id) { <mat-option [value]="estudiante.id">{{ estudiante.nombre }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+            <button mat-stroked-button type="submit">Matricular</button>
+          </form>
+          <div class="chips">
+            @for (estudiante of grupo.estudiantes; track estudiante.id) { <span class="chip">{{ estudiante.nombre }}</span> }
+            @if (grupo.estudiantes.length === 0) { <p class="vacio">Este grupo todavía no tiene estudiantes.</p> }
+          </div>
+
+          <h3>Materias</h3>
+          <form class="rejilla" (ngSubmit)="asignar()">
+            <mat-form-field appearance="outline">
+              <mat-label>Materia</mat-label>
+              <mat-select name="materiaId" [(ngModel)]="materiaId">
+                @for (materia of materias; track materia.id) { <mat-option [value]="materia.id">{{ materia.nombre }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Profesor</mat-label>
+              <mat-select name="profesorId" [(ngModel)]="profesorId">
+                @for (profesor of profesores; track profesor.id) { <mat-option [value]="profesor.id">{{ profesor.nombre }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+            <button mat-stroked-button type="submit">Asignar</button>
+          </form>
+          <table class="datos">
+            <thead><tr><th>Materia</th><th>Profesor</th></tr></thead>
+            <tbody>
+              @for (asignacion of grupo.asignaciones; track asignacion.id) {
+                <tr><td>{{ asignacion.materia }}</td><td>{{ asignacion.profesor }}</td></tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="vacio">Elige un año lectivo y crea un grupo para matricular estudiantes.</p>
+        }
+      </section>
+    </mat-tab>
+  </mat-tab-group>
+</main>

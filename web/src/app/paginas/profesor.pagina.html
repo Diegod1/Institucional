@@ -1,0 +1,162 @@
+<main class="pagina">
+  <header class="encabezado">
+    <div>
+      <p class="kicker">Profesor</p>
+      <h1>Registro de notas</h1>
+      <p>Define los porcentajes, carga las notas y deja el comentario del boletín.</p>
+    </div>
+    <button mat-stroked-button (click)="descargarListado()">Listado de estudiantes</button>
+  </header>
+  @if (mensaje()) { <p class="aviso">{{ mensaje() }}</p> }
+  @if (error()) { <p class="error">{{ error() }}</p> }
+
+  <section class="tarjeta">
+    <div class="rejilla">
+      <mat-form-field appearance="outline">
+        <mat-label>Materia y grupo</mat-label>
+        <mat-select [(ngModel)]="asignacionId" (selectionChange)="elegirAsignacion()">
+          @for (asignacion of asignaciones; track asignacion.id) {
+            <mat-option [value]="asignacion.id">{{ asignacion.anio }} · {{ asignacion.grupo }} · {{ asignacion.materia }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Periodo</mat-label>
+        <mat-select [(ngModel)]="periodoId" (selectionChange)="cargarPlanilla()">
+          @for (periodo of periodos; track periodo.id) {
+            <mat-option [value]="periodo.id">{{ periodo.nombre }}{{ periodo.cerrado ? ' · cerrado' : '' }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    @if (planilla) {
+      @if (planilla.periodoCerrado) { <p class="error">Este periodo está cerrado. Puedes consultar, no modificar.</p> }
+      <h2>{{ planilla.grado }} {{ planilla.grupo }}</h2>
+      <p>{{ planilla.materia }} · {{ planilla.nombrePeriodo }} · {{ planilla.anio }}</p>
+
+      <h3>Actividades</h3>
+      <p>Los porcentajes de este grupo y periodo tienen que sumar 100.</p>
+      @for (actividad of actividades; track $index) {
+        <div class="fila">
+          <mat-form-field appearance="outline"><mat-label>Actividad</mat-label><input matInput [(ngModel)]="actividad.nombre" [disabled]="planilla.periodoCerrado" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Porcentaje</mat-label><input matInput type="number" [(ngModel)]="actividad.porcentaje" [disabled]="planilla.periodoCerrado" /></mat-form-field>
+        </div>
+      }
+      <div class="fila">
+        <button mat-stroked-button type="button" (click)="agregarActividad()" [disabled]="planilla.periodoCerrado">Otra actividad</button>
+        <button mat-flat-button color="primary" (click)="guardarActividades()" [disabled]="planilla.periodoCerrado">Guardar porcentajes</button>
+      </div>
+
+      @if (planilla.actividades.length > 0) {
+        <div class="fila">
+          <button mat-stroked-button (click)="descargarPlanilla()">Descargar planilla</button>
+          <label class="archivo">
+            <input type="file" accept=".xlsx" (change)="subir($event)" [disabled]="planilla.periodoCerrado" />
+            <span>Subir planilla</span>
+          </label>
+        </div>
+        <div class="tabla-contenedor">
+          <table class="datos">
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                @for (actividad of planilla.actividades; track actividad.id) { <th>{{ actividad.nombre }} · {{ actividad.porcentaje }}%</th> }
+                <th>Nota</th>
+                <th>Comentario</th>
+                <th>Nivelación</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (estudiante of planilla.estudiantes; track estudiante.estudianteId) {
+                <tr>
+                  <td>{{ estudiante.nombre }}</td>
+                  @for (item of estudiante.notas; track item.actividadId) {
+                    <td><input class="campo corto" type="number" step="0.01" min="0" max="5" [(ngModel)]="item.valor" [disabled]="planilla.periodoCerrado" /></td>
+                  }
+                  <td class="nota-num">{{ nota(estudiante.notaDelPeriodo) }}</td>
+                  <td>
+                    <input class="campo" [(ngModel)]="estudiante.comentario" [disabled]="planilla.periodoCerrado" />
+                    <button mat-button (click)="guardarComentario(estudiante.estudianteId, estudiante.comentario)" [disabled]="planilla.periodoCerrado">Guardar</button>
+                  </td>
+                  <td>
+                    @for (nivelacion of estudiante.nivelaciones; track nivelacion.fecha) {
+                      <div>{{ nota(nivelacion.notaAnterior) }} → {{ nota(nivelacion.notaNueva) }}</div>
+                    }
+                    <input class="campo corto" type="number" step="0.01" min="0" max="5" [(ngModel)]="nivelaciones[estudiante.estudianteId]" [disabled]="planilla.periodoCerrado" />
+                    <button mat-button (click)="registrarNivelacion(estudiante.estudianteId)" [disabled]="planilla.periodoCerrado">Nivelar</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="fila">
+          <button mat-flat-button color="primary" (click)="guardarNotas()" [disabled]="planilla.periodoCerrado">Guardar notas</button>
+        </div>
+        <div class="rejilla">
+          <mat-form-field appearance="outline" style="flex: 1">
+            <mat-label>Comentario para todo el grupo</mat-label>
+            <input matInput [(ngModel)]="comentarioGeneral" [disabled]="planilla.periodoCerrado" />
+          </mat-form-field>
+          <button mat-stroked-button (click)="guardarComentario(null, comentarioGeneral)" [disabled]="planilla.periodoCerrado">Aplicar a todos</button>
+        </div>
+      }
+    } @else {
+      <p class="vacio">Elige una materia y un periodo para abrir la planilla.</p>
+    }
+  </section>
+
+  @if (grupos.length > 0) {
+    <section class="tarjeta">
+      <h2>Orientación de grupo</h2>
+      <p>Ves todas las materias del grupo y dejas el comentario general del boletín.</p>
+      <div class="rejilla">
+        <mat-form-field appearance="outline">
+          <mat-label>Grupo</mat-label>
+          <mat-select [(ngModel)]="grupoId">
+            @for (grupo of grupos; track grupo.id) { <mat-option [value]="grupo.id">{{ grupo.anio }} · {{ grupo.nombre }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Periodo</mat-label>
+          <mat-select [(ngModel)]="periodoOrientacionId" (selectionChange)="cargarOrientacion()">
+            @for (periodo of periodosDelGrupo(); track periodo.id) { <mat-option [value]="periodo.id">{{ periodo.nombre }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      @if (orientacion) {
+        <div class="rejilla">
+          <mat-form-field appearance="outline" style="flex: 1">
+            <mat-label>Comentario general para todo el grupo</mat-label>
+            <input matInput [(ngModel)]="comentarioGrupo" [disabled]="orientacion.cerrado" />
+          </mat-form-field>
+          <button mat-stroked-button (click)="guardarComentarioGrupo(null, comentarioGrupo)" [disabled]="orientacion.cerrado">Aplicar a todos</button>
+        </div>
+        @for (estudiante of orientacion.estudiantes; track estudiante.estudianteId) {
+          <h3>{{ estudiante.nombre }}</h3>
+          <table class="datos">
+            <thead><tr><th>Materia</th><th>Nota</th><th>Desempeño</th><th>Comentario del profesor</th></tr></thead>
+            <tbody>
+              @for (materia of estudiante.materias; track materia.materia) {
+                <tr>
+                  <td>{{ materia.materia }}</td>
+                  <td class="nota-num">{{ nota(materia.nota) }}</td>
+                  <td>{{ materia.desempeno || '—' }}</td>
+                  <td>{{ materia.comentarioProfesor || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <div class="rejilla">
+            <mat-form-field appearance="outline" style="flex: 1">
+              <mat-label>Comentario del orientador</mat-label>
+              <input matInput [(ngModel)]="estudiante.comentario" [disabled]="orientacion.cerrado" />
+            </mat-form-field>
+            <button mat-stroked-button (click)="guardarComentarioGrupo(estudiante.estudianteId, estudiante.comentario)" [disabled]="orientacion.cerrado">Guardar</button>
+          </div>
+        }
+      }
+    </section>
+  }
+</main>

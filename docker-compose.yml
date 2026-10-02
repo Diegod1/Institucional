@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: colegio
+      POSTGRES_PASSWORD: colegio
+      POSTGRES_DB: colegio
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U colegio -d colegio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      ConnectionStrings__Colegio: Host=db;Port=5432;Database=colegio;Username=colegio;Password=colegio
+      Jwt__Clave: clave-de-desarrollo-cambiar-en-produccion-32
+      Jwt__Emisor: colegio
+      Jwt__Audiencia: colegio
+      ASPNETCORE_ENVIRONMENT: Production
+    volumes:
+      - boletines:/app/boletines
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  respaldo:
+    image: prodrigestivill/postgres-backup-local
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: colegio
+      POSTGRES_USER: colegio
+      POSTGRES_PASSWORD: colegio
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+    volumes:
+      - ./respaldo:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos_postgres:
+  boletines:
